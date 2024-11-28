@@ -142,8 +142,6 @@ main:
     call scanf
     add $8, %esp
     mov func, %ecx
-    inc %ecx
-    dec %ecx
     cmp $1, %ecx
     je case_add
     cmp $2, %ecx
