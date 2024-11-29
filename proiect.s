@@ -15,7 +15,9 @@
     formatAddPrint: .asciz  "%ld: (%ld,%ld)\n"
     formatGetPrint: .asciz  "(%ld,%ld)\n"
     nrFisiere: .space 4
-    formatGetNotfound: .asciz "Descriptor not found: %ld\n"
+    formatNotfound: .asciz "Descriptor not found: %ld\n"
+    Op: .space 4
+    done: .long 0
 .text
 .global main
 add:
@@ -103,6 +105,49 @@ end:
     pop %edi
     pop %ebp
     ret
+afisare_fancy:
+    push %ebp
+    mov %esp, %ebp
+    xor %ecx, %ecx
+    push %edi
+    mov 12(%ebp), %edi
+    movl $-1, pozStart
+    movl $-1, pozEnd
+parc:
+    cmp 8(%ebp), %ecx
+    jge end_ret
+    movb (%edi, %ecx, 1), %dl
+    cmpb $0, %dl
+    jne st
+    add $1, %ecx
+    jmp parc
+st:
+    movl %ecx, pozStart
+    mov %edx, %eax
+    jmp dr
+dr:
+    inc %ecx
+    movb (%edi, %ecx, 1), %dl
+    cmp %edx, %eax
+    jne afis
+    jmp dr
+afis:
+    dec %ecx
+    mov %ecx, pozEnd
+    pusha
+    push pozEnd
+    push pozStart
+    push %eax
+    push $formatAddPrint
+    call printf
+    add $16, %esp
+    popa
+    inc %ecx
+    jmp parc
+end_ret:
+    pop %edi
+    pop %ebx
+    ret
 get:
     push %ebp
     mov %esp, %ebp
@@ -136,7 +181,51 @@ get_ret:
     pop %edi
     pop %ebp
     ret
+delete:
+    push %ebp
+    mov %esp, %ebp
+    push %edi
+    mov 12(%ebp), %edi
+    xor %ecx, %ecx
+    mov 16(%ebp), %eax
+    movl $-1, pozStart
+    movl $-1, pozEnd
+del_parcurgere:
+    xor %edx, %edx
+    cmp 8(%ebp), %ecx
+    je del_ret
+    movb (%edi, %ecx, 1), %dl
+    cmp %edx, %eax
+    je capat_stanga
+    inc %ecx
+    jmp del_parcurgere
+capat_stanga:
+    movl %ecx, pozStart
+    jmp capat_dreapta
+capat_dreapta:
+    movb $0, (%edi, %ecx, 1)
+    add $1, %ecx
+    movb (%edi, %ecx, 1), %dl
+    cmp %edx, %eax
+    jne del_ret
+    jmp capat_dreapta
+del_ret:
+    dec %ecx
+    mov %ecx, pozEnd
+    pop %edi
+    pop %ebp
+    ret
 main:
+    push $Op
+    push $formatInput
+    call scanf
+    add $8, %esp
+tasks:
+    movl Op, %eax
+    cmp $0, %eax
+    je et_ret
+    dec %eax
+    movl %eax, Op
     push $func
     push $formatInput
     call scanf
@@ -146,6 +235,8 @@ main:
     je case_add
     cmp $2, %ecx
     je et_get
+    cmp $3, %ecx
+    je et_delete
     jmp et_ret
 case_add:
     push $nrFisiere
@@ -177,7 +268,7 @@ et_afisare_add:
     dec %eax
     mov %eax, nrFisiere
     cmp $0, %eax 
-    je main
+    je tasks
     jmp et_add
 et_get:
     push $id
@@ -191,27 +282,45 @@ et_get:
     add $12, %esp
     movl pozStart, %eax
     cmp $-1, %eax
-    je getNoFound
+    je NotFound
     push pozEnd
     push pozStart
     push $formatGetPrint
     call printf
     add $16, %esp
-    jmp et_ret
-getNoFound:
+    cmpl $3, func
+    je et_delete
+    jmp tasks
+
+et_delete:
+    push $id
+    push $formatInput
+    call scanf
+    add $8, %esp
     push id
-    push $formatGetNotfound
+    push $memory
+    push memory_slots
+    call delete
+    add $12, %esp
+    movl pozStart, %eax
+    cmp $-1, %eax
+    je NotFound
+    jmp et_afisare
+NotFound:
+    push id
+    push $formatNotfound
     call printf
     add $8, %esp
-    jmp et_ret
+    jmp tasks
 et_afisare:
     push $memory
     push memory_slots
-    call afisare_vec
+    call afisare_fancy
     add $8, %esp
     push $formatEndline
     call printf
     add $4, %esp
+    jmp tasks
 et_ret:
     mov $1, %eax
     xor %ebx, %ebx
