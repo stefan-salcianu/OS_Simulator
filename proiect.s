@@ -191,9 +191,9 @@ delete:
     movl $-1, pozStart
     movl $-1, pozEnd
 del_parcurgere:
-    xor %edx, %edx
     cmp 8(%ebp), %ecx
     je del_ret
+    mov $0, %edx
     movb (%edi, %ecx, 1), %dl
     cmp %edx, %eax
     je capat_stanga
@@ -224,27 +224,21 @@ defragmentation:
     push %esi
     mov 16(%ebp), %esi
     push %ebx
-    xor %ebx, %ebx
+    mov $0, %ebx
 def:
     cmp 8(%ebp), %ecx
-    jge defragmentation_ret
-    movl (%edi, %ecx, 4), %edx
-    cmpl $0, %edx
-    jge def_st
+    je defragmentation_ret
+    movl $0, %edx
+    movb (%edi, %ecx, 1), %dl
+    cmp $0, %dl
+    jne copy
     add $1, %ecx
     jmp def
-def_st:
-    mov %edx, %eax
-    movl %edx, (%esi, %ebx, 4)
-    jmp def_dr
-def_dr:
-    inc %ecx
-    inc %ebx
-    movl (%edi, %ecx, 4), %edx
-    cmp %edx, %eax
-    jne def
-    movl %edx, (%esi, %ebx, 4)
-    jmp def_dr
+copy:             
+    movb %dl, (%esi, %ebx, 1) 
+    inc %ecx                  
+    inc %ebx                  
+    jmp def                
 defragmentation_ret:
     pop %ebx
     pop %esi
@@ -361,7 +355,7 @@ et_defragmentation:
     mov $cp_memory, %edi
     mov $memory, %esi
     mov $0, %ecx
-    jmp et_afisare
+    
 update_memory:
     cmp %ecx, memory_slots
     je et_afisare
