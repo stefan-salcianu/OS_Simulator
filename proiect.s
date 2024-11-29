@@ -1,5 +1,6 @@
 .data
     memory:.space 1024
+    cp_memory: .space 1024
     memory_slots: .long 300
     formatPrintf: .asciz "%ld, "
     formatEndline:.asciz "\n"
@@ -54,9 +55,6 @@ reinit:
 incrementare:
     inc %ebx
     jmp parcurgere
-    #pushl $0
-    #call fflush
-    #add $4, %esp
 poz_impl:
     dec %ecx
     mov %ecx, pozEnd
@@ -116,6 +114,7 @@ afisare_fancy:
 parc:
     cmp 8(%ebp), %ecx
     jge end_ret
+    movl $0, %edx
     movb (%edi, %ecx, 1), %dl
     cmpb $0, %dl
     jne st
@@ -127,6 +126,7 @@ st:
     jmp dr
 dr:
     inc %ecx
+    movl $0, %edx
     movb (%edi, %ecx, 1), %dl
     cmp %edx, %eax
     jne afis
@@ -215,6 +215,43 @@ del_ret:
     pop %edi
     pop %ebp
     ret
+defragmentation:
+    push %ebp
+    mov %esp, %ebp
+    xor %ecx, %ecx
+    push %edi
+    mov 12(%ebp), %edi
+    push %esi
+    mov 16(%ebp), %esi
+    push %ebx
+    xor %ebx, %ebx
+def:
+    cmp 8(%ebp), %ecx
+    jge defragmentation_ret
+    movl (%edi, %ecx, 4), %edx
+    cmpl $0, %edx
+    jge def_st
+    add $1, %ecx
+    jmp def
+def_st:
+    mov %edx, %eax
+    movl %edx, (%esi, %ebx, 4)
+    jmp def_dr
+def_dr:
+    inc %ecx
+    inc %ebx
+    movl (%edi, %ecx, 4), %edx
+    cmp %edx, %eax
+    jne def
+    movl %edx, (%esi, %ebx, 4)
+    jmp def_dr
+defragmentation_ret:
+    pop %ebx
+    pop %esi
+    pop %edi 
+    pop %ebp
+    ret
+
 main:
     push $Op
     push $formatInput
@@ -237,6 +274,8 @@ tasks:
     je et_get
     cmp $3, %ecx
     je et_delete
+    cmp $4, %ecx
+    je et_defragmentation
     jmp et_ret
 case_add:
     push $nrFisiere
@@ -312,14 +351,30 @@ NotFound:
     call printf
     add $8, %esp
     jmp tasks
+
+et_defragmentation:
+    push $cp_memory
+    push $memory
+    push memory_slots
+    call defragmentation
+    add $12, %esp
+    mov $cp_memory, %edi
+    mov $memory, %esi
+    mov $0, %ecx
+    jmp et_afisare
+update_memory:
+    cmp %ecx, memory_slots
+    je et_afisare
+    movl $0, %edx
+    movb (%edi, %ecx, 1), %dl
+    movb %dl, (%esi, %ecx, 1)
+    add $1, %ecx
+    jmp update_memory
 et_afisare:
     push $memory
     push memory_slots
     call afisare_fancy
     add $8, %esp
-    push $formatEndline
-    call printf
-    add $4, %esp
     jmp tasks
 et_ret:
     mov $1, %eax
