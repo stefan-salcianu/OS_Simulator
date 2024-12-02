@@ -1,7 +1,7 @@
 .data
     memory:.space 1024
     cp_memory: .space 1024
-    memory_slots: .long 58
+    memory_slots: .long 64
     lineStart: .space 4
     colStart: .space 4
     lineEnd: .space 4
@@ -19,7 +19,7 @@
     rez:.long 4
     func:.long 4
     formatInput: .asciz "%ld\n"
-    formatAddPrint: .asciz  "%ld: (%ld,%ld)\n"
+    formatAddPrint: .asciz  "%ld: (%ld,%ld),(%ld,%ld)\n"
     formatGetPrint: .asciz  "(%ld,%ld)\n"
     nrFisiere: .space 4
     formatNotfound: .asciz "Descriptor not found: %ld\n"
@@ -35,10 +35,10 @@ add:
     movl $0, colEnd
     movl $0, lineStart
     movl $0, lineEnd
-    xor %edx, %edx
+    movl $0, %edx
     movl $8, %ecx
     idiv %ecx
-    xor %ecx, %ecx
+    movl $0, %ecx
     push %edi
     mov 12(%ebp), %edi
     push %ebx
@@ -59,6 +59,12 @@ parcurgere:
     jmp reinit
 reinit:
     mov $0, %ebx
+    movl $0, %edx
+    movl colEnd, %edx
+    add $1, %edx
+    mov %edx, colEnd
+    cmp $8, %edx
+    je reinitIndex
     jmp parcurgere
 incrementare:
     addl $1, %ebx
@@ -66,36 +72,62 @@ incrementare:
     movl colEnd, %edx
     add $1, %edx
     mov %edx, colEnd
-    cmp $7, %edx
+    cmp $8, %edx
     je reinitIndex
-    
     jmp parcurgere
 reinitIndex:
     movl lineEnd, %edx
     add $1, %edx
     mov %edx, lineEnd
+    mov %edx, lineStart
+    movl colEnd, %edx
+    movl $0, %edx
+    mov %edx, colEnd
     jmp parcurgere
 poz_impl:
-    dec %ecx
+    subl $1, %ecx
     mov %ecx, pozEnd
     mov %ecx, pozStart
-    dec %eax
-    subl %eax, pozStart 
-    inc %eax
+    subl $1, %eax
+    subl %eax, pozStart
+    add $1, %eax 
+    mov colEnd, %edx
+    cmp $0, %edx
+    je index0
+    jmp verif
+index0:
+
+    movl $8, %edx
+    mov %edx, colEnd
+    movl lineEnd, %edx
+    sub $1, %edx
+    mov %edx, lineEnd
+    mov %edx, lineStart
     jmp verif
 verif:
-    mov colEnd, %ebx
-    mov %ebx, colStart
+    
+    mov colEnd, %edx
+    subl $1, %edx
+    mov %edx, colStart
+    mov %edx, colEnd
     dec %eax
     subl %eax, colStart
     inc %eax
+    xor %edx, %edx
     mov colStart, %edx
     cmp $0, %edx
-    jl inc_ecx
-inc_ecx:
-    add $1, %ecx
-    jmp parcurgere
+    jge adaugare
+    jmp inc_ecx
 
+inc_ecx:
+    add $2, %ecx
+    movl $0, %edx
+    movl colEnd, %edx
+    add $2, %edx
+    mov %edx, colEnd
+    cmp $8, %edx
+    je reinitIndex
+    jmp parcurgere
 adaugare:
     cmp $0, %eax
     je end_add
@@ -141,6 +173,7 @@ lineDone:
     add $4, %esp
     popa
     mov $0, %ebx
+    inc %ecx
     jmp afisare
     
 end:
@@ -296,6 +329,7 @@ main:
     push $formatInput
     call scanf
     add $8, %esp
+    
 tasks:
     movl Op, %eax
     cmp $0, %eax
@@ -336,17 +370,19 @@ et_add:
     add $16, %esp
     jmp et_afisare_add
 et_afisare_add:
-    #push pozEnd
-    #push pozStart
-    #push id
-    #push $formatAddPrint
-    # call printf
-    # add $16, %esp
+    push colEnd
+    push lineEnd
+    push colStart
+    push lineStart
+    push id
+    push $formatAddPrint
+    call printf
+    add $24, %esp
     mov nrFisiere, %eax
     dec %eax
     mov %eax, nrFisiere
     cmp $0, %eax 
-    je et_afisare
+    je tasks
     jmp et_add
 et_get:
     push $id
