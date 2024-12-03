@@ -1,7 +1,7 @@
 .data
     memory:.space 1024
     cp_memory: .space 1024
-    memory_slots: .long 300
+    memory_slots: .long 1024
     formatPrintf: .asciz "%ld, "
     formatEndline:.asciz "\n"
     formatScanf: .asciz "%ld\n %ld\n"
@@ -25,8 +25,8 @@ add:
     push %ebp
     mov %esp, %ebp
     movl 16(%ebp), %eax
-    movl $-1, pozStart
-    movl $-1, pozEnd
+    movl $0, pozStart
+    movl $0, pozEnd
     xor %edx, %edx
     movl $8, %ecx
     idiv %ecx
@@ -336,14 +336,15 @@ et_delete:
     call delete
     add $12, %esp
     movl pozStart, %eax
-    cmp $-1, %eax
-    je NotFound
     jmp et_afisare
 NotFound:
-    push id
-    push $formatNotfound
+    mov $0, pozStart
+    mov $0, pozEnd
+    push pozEnd
+    push pozStart
+    push $formatGetPrint
     call printf
-    add $8, %esp
+    add $12, %esp
     jmp tasks
 
 et_defragmentation:
