@@ -19,8 +19,8 @@
     rez:.long 4
     func:.long 4
     formatInput: .asciz "%ld\n"
-    formatAddPrint: .asciz  "%ld: (%ld,%ld),(%ld,%ld)\n"
-    formatGetPrint: .asciz  "(%ld,%ld)\n"
+    formatAddPrint: .asciz  "%ld: ((%ld,%ld),(%ld,%ld))\n"
+    formatGetPrint: .asciz  "((%ld,%ld),(%ld,%ld))\n"
     nrFisiere: .space 4
     formatNotfound: .asciz "Descriptor not found: %ld\n"
     Op: .space 4
@@ -47,6 +47,8 @@ add:
     je parcurgere
     inc %eax
 parcurgere:
+    cmp $9, %eax
+    jge end_add
     xor %edx, %edx
     cmp 8(%ebp), %ecx
     je end_add
@@ -233,8 +235,14 @@ get:
     mov 12(%ebp), %edi
     xor %ecx, %ecx
     mov 16(%ebp), %eax
+    push %ebx
+    movl $0, %ebx
     movl $-1, pozStart
     movl $-1, pozEnd
+    movl $0, colStart
+    movl $0, colEnd
+    movl $0, lineStart
+    movl $0, lineEnd
 get_parcurgere:
     xor %edx, %edx
     cmp 8(%ebp), %ecx
@@ -243,19 +251,33 @@ get_parcurgere:
     cmp %edx, %eax
     je capat_st
     inc %ecx
+    inc %ebx
+    mov %ebx, colStart
+    cmp $8, %ebx
+    je re_index
+    jmp get_parcurgere
+re_index:
+    mov $0, %ebx
+    mov %ebx, colStart
+    mov lineEnd, %edx
+    add $1, %edx
+    mov %edx, lineEnd
+    mov %edx, lineStart
     jmp get_parcurgere
 capat_st:
     movl %ecx, pozStart
     jmp capat_dr
 capat_dr:
     inc %ecx
+    inc %ebx
     movb (%edi, %ecx, 1), %dl
     cmp %edx, %eax
     jne get_ret
     jmp capat_dr
 get_ret:
-    dec %ecx
-    mov %ecx, pozEnd
+    dec %ebx
+    mov %ebx, colEnd
+    pop %ebx
     pop %edi
     pop %ebp
     ret
@@ -397,11 +419,13 @@ et_get:
     movl pozStart, %eax
     cmp $-1, %eax
     je NotFound
-    push pozEnd
-    push pozStart
+    push colEnd
+    push lineEnd
+    push colStart
+    push lineStart
     push $formatGetPrint
     call printf
-    add $16, %esp
+    add $20, %esp
     cmpl $3, func
     je et_delete
     jmp tasks
@@ -421,10 +445,17 @@ et_delete:
     je NotFound
     jmp et_afisare
 NotFound:
-    push id
-    push $formatNotfound
+    movl $0, colEnd
+    movl $0, colStart
+    movl $0, lineEnd
+    movl $0, lineStart
+    push colEnd
+    push lineEnd
+    push colStart
+    push lineStart
+    push $formatGetPrint
     call printf
-    add $8, %esp
+    add $20, %esp
     jmp tasks
 
 et_defragmentation:
