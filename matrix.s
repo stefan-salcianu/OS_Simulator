@@ -1,13 +1,13 @@
 .data
     memory:.space 1024
-    cp_memory: .space 1024
+    cp_memory: .space 512
     memory_slots: .long 64
     lineStart: .space 4
     colStart: .space 4
     lineEnd: .space 4
     colEnd: .space 4
     copie: .space 4
-    cnt: .space 4
+    indiceCopie: .long 0
     formatPrintf: .asciz "%ld, "
     formatEndline:.asciz "\n"
     formatScanf: .asciz "%ld\n %ld\n"
@@ -376,17 +376,32 @@ defragmentation:
     mov $0, %ebx
 def:
     cmp 8(%ebp), %ecx
-    je defragmentation_ret
+    jge defragmentation_ret
     movl $0, %edx
     movb (%edi, %ecx, 1), %dl
-    cmp $0, %dl
-    jne copy
+    cmpb $0, %dl
+    jne cpt_stanga
     add $1, %ecx
     jmp def
-copy:             
-    movb %dl, (%esi, %ebx, 1) 
-    inc %ecx                  
-    inc %ebx                  
+cpt_stanga:
+    mov %edx, %eax
+cpt_dreapta:
+    movl $0, %edx
+    movb (%edi, %ecx, 1), %dl
+    cmp %eax, %edx
+    jne copy
+    movb $0, (%edi, %ecx, 1)
+    inc %ecx
+    add $1, %ebx
+    jmp cpt_dreapta
+copy:          
+    movl indiceCopie, %edx
+    movb %al, (%esi,%edx, 1)
+    addl $1, %edx
+    movb %bl, (%esi,%edx, 1)
+    addl $1, %edx
+    movl %edx, indiceCopie
+    movl $0, %ebx
     jmp def                
 defragmentation_ret:
     pop %ebx
@@ -489,14 +504,6 @@ et_delete:
     push memory_slots
     call delete
     add $12, %esp
-    movl pozStart, %eax
-    cmp $-1, %eax
-    je NotFound
-    pusha
-    push $formatEndline
-    call printf
-    add $4, %esp
-    popa
     jmp et_afisare
 NotFound:
     movl $0, colEnd
@@ -518,18 +525,43 @@ et_defragmentation:
     push memory_slots
     call defragmentation
     add $12, %esp
-    mov $cp_memory, %edi
-    mov $memory, %esi
     mov $0, %ecx
+    mov %ecx, indiceCopie
+    mov $cp_memory, %esi
     
-update_memory:
-    cmp %ecx, memory_slots
-    je et_afisare
-    movl $0, %edx
-    movb (%edi, %ecx, 1), %dl
-    movb %dl, (%esi, %ecx, 1)
-    add $1, %ecx
-    jmp update_memory
+et_add_defragmentation:
+    mov indiceCopie, %ecx
+    cmp $513, %ecx
+    je end_ret
+    movb (%esi, %ecx, 1), %dl
+    cmp $0, %edx
+    je tasks
+    mov %edx, id
+    addl $1, %ecx
+    movb (%esi, %ecx, 1), %al
+    mov $0, %edx
+    movl $8, %ebx
+    mul %ebx
+    mov %eax, size
+    addl $1, %ecx
+    mov %ecx, indiceCopie
+    push id
+    push size
+    push $memory
+    push memory_slots
+    call add
+    add $16, %esp
+    jmp et_afisare_add_defgram
+et_afisare_add_defgram:
+    push colEnd
+    push lineEnd
+    push colStart
+    push lineStart
+    push id
+    push $formatAddPrint
+    call printf
+    add $24, %esp
+    jmp et_add_defragmentation
 et_afisare:
     push $memory
     push memory_slots
@@ -537,6 +569,9 @@ et_afisare:
     add $8, %esp
     jmp tasks
 et_ret:
+    push $formatEndline
+    call printf
+    add $4, %esp
     mov $1, %eax
     xor %ebx, %ebx
     int $0x80
