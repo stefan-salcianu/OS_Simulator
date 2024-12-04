@@ -189,8 +189,14 @@ afisare_fancy:
     xor %ecx, %ecx
     push %edi
     mov 12(%ebp), %edi
+    push %ebx
+    movl $0, %ebx
     movl $-1, pozStart
     movl $-1, pozEnd
+    movl $0, colStart
+    movl $0, colEnd
+    movl $0, lineStart
+    movl $0, lineEnd
 parc:
     cmp 8(%ebp), %ecx
     jge end_ret
@@ -199,13 +205,30 @@ parc:
     cmpb $0, %dl
     jne st
     add $1, %ecx
+    add $1, %ebx
+    mov %ebx, colStart
+    cmp $8, %ebx
+    je r_index
     jmp parc
+r_index:
+    movl lineEnd, %edx
+    add $1, %edx
+    mov %edx, lineEnd
+    mov %edx, lineStart
+    movl $0, %ebx
+    mov %ebx, colStart
+    jmp parc
+
 st:
+    movl %ebx, colStart
+    cmp $8, %ebx
+    je r_index
     movl %ecx, pozStart
     mov %edx, %eax
     jmp dr
 dr:
     inc %ecx
+    inc %ebx
     movl $0, %edx
     movb (%edi, %ecx, 1), %dl
     cmp %edx, %eax
@@ -213,18 +236,23 @@ dr:
     jmp dr
 afis:
     dec %ecx
-    mov %ecx, pozEnd
+    dec %ebx
+    mov %ebx, colEnd
     pusha
-    push pozEnd
-    push pozStart
+    push colEnd
+    push lineEnd
+    push colStart
+    push lineStart
     push %eax
     push $formatAddPrint
     call printf
-    add $16, %esp
+    add $24, %esp
     popa
     inc %ecx
+    inc %ebx
     jmp parc
 end_ret:
+    pop %ebx
     pop %edi
     pop %ebx
     ret
@@ -288,8 +316,14 @@ delete:
     mov 12(%ebp), %edi
     xor %ecx, %ecx
     mov 16(%ebp), %eax
+    push %ebx
+    movl $0, %ebx
     movl $-1, pozStart
     movl $-1, pozEnd
+    movl $0, colStart
+    movl $0, colEnd
+    movl $0, lineStart
+    movl $0, lineEnd
 del_parcurgere:
     cmp 8(%ebp), %ecx
     je del_ret
@@ -298,6 +332,18 @@ del_parcurgere:
     cmp %edx, %eax
     je capat_stanga
     inc %ecx
+    inc %ebx
+    mov %ebx, colStart
+    cmp $8, %ebx
+    je rein_index
+    jmp del_parcurgere
+rein_index:
+    mov $0, %ebx
+    mov %ebx, colStart
+    mov lineEnd, %edx
+    add $1, %edx
+    mov %edx, lineEnd
+    mov %edx, lineStart
     jmp del_parcurgere
 capat_stanga:
     movl %ecx, pozStart
@@ -305,13 +351,16 @@ capat_stanga:
 capat_dreapta:
     movb $0, (%edi, %ecx, 1)
     add $1, %ecx
+    inc %ebx
     movb (%edi, %ecx, 1), %dl
     cmp %edx, %eax
     jne del_ret
     jmp capat_dreapta
 del_ret:
+    dec %ebx
     dec %ecx
-    mov %ecx, pozEnd
+    mov %ebx, colEnd
+    pop %ebx
     pop %edi
     pop %ebp
     ret
@@ -443,6 +492,11 @@ et_delete:
     movl pozStart, %eax
     cmp $-1, %eax
     je NotFound
+    pusha
+    push $formatEndline
+    call printf
+    add $4, %esp
+    popa
     jmp et_afisare
 NotFound:
     movl $0, colEnd
@@ -479,9 +533,9 @@ update_memory:
 et_afisare:
     push $memory
     push memory_slots
-    call afisare_matrix
+    call afisare_fancy
     add $8, %esp
-    #jmp tasks
+    jmp tasks
 et_ret:
     mov $1, %eax
     xor %ebx, %ebx
