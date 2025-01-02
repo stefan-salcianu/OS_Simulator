@@ -27,10 +27,13 @@
     formatNotfound: .asciz "Descriptor not found: %ld\n"
     Op: .space 4
     done: .long 0
-    path: .asciz "/home/stefan/laborator_asc/asc_project"  #; Path to the directory (null-terminated string)                      ; Buffer for file name (reserves 256 bytes)
+    path: .space 150
+    path1: .asciz "/home/stefan/laborator_asc/asc_project"  #; Path to the directory (null-terminated string)                      ; Buffer for file name (reserves 256 bytes)
     fileDesc: .asciz "Descriptor: %d\n"      #; Format for printing file descriptor (with newline)
     fileSize: .asciz "Size: %d KB\n"
-    buf: .space 256
+    fileFormat: .asciz "file%d.txt\n"
+    formatInputString: .asciz "%s\n"
+    buffer: .space 256
     dirDescriptor:.space 1
 .text
 .global main
@@ -734,16 +737,40 @@ et_afisare_add_defgram:
     add $4, %esp
     jmp et_add_defragmentation
 et_concrete: 
-    #jmp et_ret
-    mov $5, %eax
-    mov path, %ebx
-    mov $0, %ecx                                #; flags = O_RDONLY (read-only)
-    int $0x80                                    # ; make syscall
-    mov [dirDescriptor], %eax
-    push %eax
-    push $formatInput
+    push $path
+    push $formatInputString
+    call scanf
+    add $8, %esp
+    push $path
+    push $formatInputString
     call printf
     add $8, %esp
+    movl $4, %ecx
+    movl $0, %ebx
+et_concrete_loop:
+    lea buffer(%ebx), %eax
+    push %ecx
+    push %ebx
+    push $fileFormat
+    call printf
+    add $8, %esp
+    pop %ecx
+    #push $path
+    #push %eax
+    #call strcat
+    #add $8, %esp
+    push %ecx
+    push $path
+    push $formatInputString
+    call printf
+    add $8, %esp
+    mov $5, %eax
+    lea buffer, %ebx
+    pop %ecx
+    addl $1, %ebx
+    loop et_concrete_loop
+et_finish:
+    jmp et_ret
 et_afisare:
     push $memory
     push memory_slots
